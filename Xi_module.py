@@ -17,7 +17,7 @@ def Xi(x,BiL,Longueur, coeff = False):
     #
     # (%%% A compléter %%%)
     x = np.array(x)
-
+    
     Beta = BiL / Longueur
     denominateur = 1 + 2*np.sin(BiL)*np.exp(-BiL)-np.exp(-2*BiL)
 
