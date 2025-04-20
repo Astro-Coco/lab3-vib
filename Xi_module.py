@@ -1,4 +1,4 @@
-def Xi(x,BiL,Longueur):
+def Xi(x,BiL,Longueur, coeff = False):
     import numpy as np
     #  Description
     # 
@@ -16,16 +16,20 @@ def Xi(x,BiL,Longueur):
     #  xi: Mode propre en fonction de la position x.
     #
     # (%%% A compléter %%%)
-    ci = 
-    di = 
-    ai = 
+    x = np.array(x)
 
-    xi = ai * np.sin(beta * x) - np.cos(beta * x) + ci * np.exp(-beta * x) + di * np.exp(beta * (x - L))
-    ... \
-    ... \
-    ...
+    Beta = BiL / Longueur
+    denominateur = 1 + 2*np.sin(BiL)*np.exp(-BiL)-np.exp(-2*BiL)
 
-    return xi
+    ci = ((np.cos(BiL) + np.sin(BiL)) * np.exp(-BiL) + 1) / denominateur
+    di = (-np.cos(BiL) + np.sin(BiL) - np.exp(-BiL)) / denominateur
+    ai = ci - di * np.exp(-BiL)
+
+    if coeff:
+        return ci, di, ai
+    else:
+        xi = ai * np.sin(Beta * x) - np.cos(Beta * x) + ci * np.exp(-Beta * x) + di * np.exp(Beta * (x - Longueur))
+        return xi
     
 def Xij(x,BiL,BjL,Longueur):
     #  Description
@@ -45,8 +49,8 @@ def Xij(x,BiL,BjL,Longueur):
     #
     # (%%% A compléter %%%)
 
-    xi = # appel à Xi pour BiL...
-    xj = # appel à Xi pour BjL...
+    xi = Xi(x, BiL, Longueur)
+    xj = Xi(x, BjL, Longueur)
     xij = xi * xj # produite terme à terme
     return xij
 
@@ -68,23 +72,21 @@ def Xij_dd(x,BiL,BjL,Longueur):
     #  xij_dd: Valeur du produit xi''(x)*xj''(x) en fonction de x
     #
     # (%%% A compléter %%%)
-    ci = 
-    di = 
-    ai = 
+    ci , di, ai = Xi(x, BiL, Longueur, coeff = True)
+    beta_i = BiL / Longueur
+    xi_dd = -ai * beta_i**2 * np.sin(beta_i * x) \
+            - beta_i**2 * np.cos(beta_i * x) \
+            + ci * beta_i**2 * np.exp(-beta_i * x) \
+            + di * beta_i**2 * np.exp(beta_i * (x - Longueur))
 
-    xi_dd = ... \
-    ... \
-    ... \
-    ...
+    cj, dj, aj = Xi(x, BjL, Longueur, coeff = True)
+    beta_j = BjL / Longueur
 
-    cj = 
-    dj = 
-    aj = 
 
-    xj_dd = ... \
-    ... \
-    ... \
-    ...
+    xj_dd = -aj * beta_j**2 * np.sin(beta_j * x) \
+            - beta_j**2 * np.cos(beta_j * x) \
+            + cj * beta_j**2 * np.exp(-beta_j * x) \
+            + dj * beta_j**2 * np.exp(beta_j * (x - Longueur))
 
     xij_dd = xi_dd * xj_dd
     return xij_dd

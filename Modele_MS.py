@@ -6,7 +6,7 @@ import math as mt
 import scipy.linalg as la
 import sys
 from scipy.optimize import fsolve
-from Xi_module import Xij, Xij_dd
+from Xi_module import Xi, Xij, Xij_dd
 
 # use LaTeX fonts in the plot
 plt.rc('text', usetex=True)
@@ -43,7 +43,8 @@ def func(x):
     return np.cos(x)+1/np.cosh(x)
 
 for i in range(N):
-    BL[i] = fsolve(func,[BL[i]])
+    BL[i] = BL[i] = fsolve(func, BL[i])[0]
+
 
 # Discrétisation de l'aile en 100 points
 Nb_Points = 100
@@ -54,24 +55,34 @@ m = RHO*A
 mij = np.zeros((N,N))
 kij = np.zeros((N,N))
 for i in range(N):
-    for j in range(N):
-        mij[i,j] =   # utiliser integrate.quad
-        # ajouter poids carburant
-        # et moteur
+    for j in range(i,N):
+        # Masse ponctuelle du moteur à LM
+        xi_LM = Xi([LM], BL[i], Longueur)
+        xj_LM = Xi([LM], BL[j], Longueur)
+        mij[i,j] += MM * xi_LM[0] * xj_LM[0]
+        
+        # masse de l’aile
+        mij[i,j], _ = integrate.quad(lambda xx: m * Xij(np.array([xx]), BL[i], BL[j], Longueur), 0, Longueur, limit = 200)
+
+        # masse carburant
+        mij[i,j] += integrate.quad(lambda xx: MC * Xij(np.array([xx]), BL[i], BL[j], Longueur), LC1, LC2, limit = 200)[0]
+
+        # raideur
+        kij[i,j], _ = integrate.quad(lambda xx: E * I * Xij_dd(np.array([xx]), BL[i], BL[j], Longueur), 0, Longueur, limit = 200)
+
         # mij[i,j] = mij[i,j] si j ne va que de i-1 à N-1: range(i,N)
-        kij[i,j] = # utiliser integrate.quad
         # kij[i,j] = kij[i,j] si j ne va que de i-1 à N-1: range(i,N)
 
+        # Symétrie de la matrice, donc j in range(i,N)
+
 # Calul des fréquences propres    (%%% A compléter %%%)
-LAMBDA, PHI = 
+LAMBDA, PHI = la.eig(kij, mij)
 # print("LAMBDA : Les valeurs propres")
 # print("PHI normalisée (norme euclidienne)")
 OMEGA = sorted(np.sqrt(np.real(LAMBDA)))
 for i in range(N):
     #LAR = PHI[i,:]
     PHI[i,:] = PHI[i,:][np.sqrt(np.real(LAMBDA)).argsort()]
-
-
 
 def Modes_MS(Q,x,Longueur,BL):
     from Xi_module import Xi
@@ -108,7 +119,7 @@ def Modes_MS(Q,x,Longueur,BL):
     return v_AM
 
 # Calcul de modes propres    (%%% A compléter %%%)
-v_AM = # appel à Modes_MS
+v_AM = Modes_MS(PHI, x, Longueur, BL)
 
 # Tracage des 5 premiers Modes et impression des fréquences en rad/s
 Nb_Modes = 5
