@@ -40,7 +40,7 @@ MC = 304.0            # Masse linéique du carburant en kg/m
 
 # #########################################################################
 # Maillage
-Nb_Elements = 20
+Nb_Elements = 10
 L = Longueur/Nb_Elements
 DDL = 2*(Nb_Elements+1)
 
@@ -286,3 +286,116 @@ for i in range(5):
     delta = delta + np.max(sum((v_FEM1[1:100,i]-v_FEM[1:100,i])**2)/sum((v_FEM[1:100,i])**2))
 print('delta - convergence vecteurs propres')
 print(delta)
+
+# ANALYSE DE CONVERGENCE - FRÉQUENCES PROPRES ET MODES PROPRES (EF)
+import matplotlib.pyplot as plt
+from scipy.linalg import eig
+from scipy.optimize import curve_fit
+import numpy as np
+
+# =====================
+# Fonction assemblage EF pour un N donné
+# =====================
+def assemble_K_M_EF(Nb_Elements):
+    L = Longueur / Nb_Elements
+    DDL = 2 * (Nb_Elements + 1)
+    K_poutre = (E*I/L**3)*np.array([[12, 6*L, -12, 6*L],
+                                    [6*L, 4*L**2, -6*L, 2*L**2],
+                                    [-12, -6*L, 12, -6*L],
+                                    [6*L, 2*L**2, -6*L, 4*L**2]])
+    M_poutre = (L/420)*np.array([[156, 22*L, 54, -13*L],
+                                  [22*L, 4*L**2, 13*L, -3*L**2],
+                                  [54, 13*L, 156, -22*L],
+                                  [-13*L, -3*L**2, -22*L, 4*L**2]])
+    K = np.zeros((DDL, DDL))
+    M = np.zeros((DDL, DDL))
+    for i in range(0, DDL - 3, 2):
+        K[i:i+4, i:i+4] += K_poutre
+        M[i:i+4, i:i+4] += RHO * A * M_poutre
+    noeud_moteur = round(LM / L)
+    M[2*noeud_moteur, 2*noeud_moteur] += MM
+    noeud1 = round(LC1 / L)
+    noeud2 = round(LC2 / L)
+    for i in range(2*noeud1+2, 2*noeud2-1, 2):
+        M[i:i+4, i:i+4] += MC * M_poutre
+    return K[2:, 2:], M[2:, 2:], Nb_Elements
+
+# =====================
+# Fonction pour extraire les fréquences
+# =====================
+def get_frequencies(K, M):
+    LAMBDA, _ = eig(K, M)
+    return np.array(sorted(np.sqrt(np.real(LAMBDA))))[:5]
+
+# =====================
+# Fonction pour extraire les modes interpolés
+# =====================
+def get_modes(K, M, Nb_Elements):
+    _, PHI = eig(K, M)
+    idx = np.argsort(np.sqrt(np.real(_)))
+    PHI = PHI[:, idx]
+    PHI = np.block([[np.zeros((2, PHI.shape[1]))], [PHI]])
+    x = np.linspace(0, Longueur, 100)
+    v = Modes_EF(PHI, x, Longueur, Nb_Elements)
+    return v[:, :5]
+
+# =====================
+# Analyse convergence des fréquences
+# =====================
+print("\n======= ANALYSE DE CONVERGENCE DES FRÉQUENCES =======")
+N_vals = []
+epsilons = []
+N = 5
+while N <= 320:
+    K1, M1, _ = assemble_K_M_EF(N)
+    K2, M2, _ = assemble_K_M_EF(2*N)
+    omega1 = get_frequencies(K1, M1)
+    omega2 = get_frequencies(K2, M2)
+    erreur = np.abs((omega2 - omega1) / omega1)
+    eps_max = np.max(erreur)
+    print(f"N = {N}  |  Erreur max : {eps_max*100:.3f}%")
+    N_vals.append(N)
+    epsilons.append(eps_max)
+    N *= 2
+
+# Figure convergence fréquence (log-log)
+plt.figure()
+plt.loglog(N_vals, np.array(epsilons)*100, 'o-', label="Erreur max freq")
+plt.xlabel("Nombre d'éléments (N)")
+plt.ylabel("Erreur maximale (%)")
+plt.title("Convergence des fréquences (log-log)")
+plt.grid(True, which='both', linestyle='--')
+plt.legend()
+plt.savefig("convergence_frequences_EF.png", dpi=300)
+
+# =====================
+# Analyse convergence des modes
+# =====================
+print("\n======= ANALYSE DE CONVERGENCE DES MODES PROPRES =======")
+N_vals = []
+deltas = []
+N = 5
+while N <= 320:
+    K1, M1, n1 = assemble_K_M_EF(N)
+    K2, M2, n2 = assemble_K_M_EF(2*N)
+    vN = get_modes(K1, M1, n1)
+    v2N = get_modes(K2, M2, n2)
+    erreurs = []
+    for i in range(5):
+        err = np.sum((v2N[:, i] - vN[:, i])**2) / np.sum(vN[:, i]**2)
+        erreurs.append(err)
+    delta = max(erreurs)
+    print(f"N = {N}  |  Erreur max : {delta*100:.3f}%")
+    N_vals.append(N)
+    deltas.append(delta)
+    N *= 2
+
+# Figure convergence modes (log-log)
+plt.figure()
+plt.loglog(N_vals, np.array(deltas)*100, 'o-', label="Erreur max mode")
+plt.xlabel("Nombre d'éléments (N)")
+plt.ylabel("Erreur quadratique (%)")
+plt.title("Convergence des modes propres (log-log)")
+plt.grid(True, which='both', linestyle='--')
+plt.legend()
+plt.savefig("convergence_modes_EF.png", dpi=300)
