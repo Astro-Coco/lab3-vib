@@ -33,15 +33,21 @@ def Modes_EF(PHI,x,Longueur,Nb_Elements):
         # Calcul de x local dans l'élément poutre
         x_local = x[i] - (Numero_Element[i]-1)*L
         # Identification des 4 DDLs
-        j = np.int(2*Numero_Element[i]-2)
+        j = int(2*Numero_Element[i]-2)
         # Fonctions de forme %%% À compléter %%%
-        N1 =  
-        N2 =  
-        N3 =  
-        N4 =  
-        # Calcul de la flèche à la position i, et ce pour chaque mode propre. %%% À compléter %%%
-        v_FEM[i,:] =  
+        xi = x_local / L
+        N1 = (2/L**3)*(x_local**3) - (3/L**2)*(x_local**2) + 1
+        N2 = (1/L**2)*(x_local**3) - (2/L)*(x_local**2) + x_local
+        N3 = (-2/L**3)*(x_local**3) + (3/L**2)*(x_local**2)
+        N4 = (1/L**2)*(x_local**3) - (1/L)*(x_local**2)
+
+        v_FEM[i,:] = N1*PHI[j,:] + N2*PHI[j+1,:] + N3*PHI[j+2,:] + N4*PHI[j+3,:]
     # Normalisation des vecteurs propres
-    for i in range(Nb_DDL):
-        v_FEM[:,i] = abs(v_FEM[1,i])/(v_FEM[1,i])*(v_FEM[:,i]/np.linalg.norm(v_FEM[:,i]))
+    # Normalisation des vecteurs propres
+    if Nb_Points > 1:
+        for i in range(Nb_DDL):
+            v_FEM[:,i] = abs(v_FEM[1,i])/(v_FEM[1,i])*(v_FEM[:,i]/np.linalg.norm(v_FEM[:,i]))
+    else:
+        for i in range(Nb_DDL):
+            v_FEM[:,i] = v_FEM[:,i] / np.linalg.norm(v_FEM[:,i])
     return v_FEM

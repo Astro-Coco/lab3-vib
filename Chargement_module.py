@@ -44,7 +44,7 @@ def Chargement(Deplacement,Longueur,Nb_Elements):
         # Calcul de x local dans l'élément poutre
         x_local = x[i] - (Numero_Element[i]-1)*L
         # %Identification des 4 DDLs
-        j = np.int(2*Numero_Element[i]-2)
+        j = int(2*Numero_Element[i]-2)
         # %Fonctions de forme
         N1 = (2/L**3)*(x_local**3) - (3/L**2)*(x_local**2) + 1
         N2 = (1/L**2)*(x_local**3) - (2/L)*(x_local**2) + x_local
