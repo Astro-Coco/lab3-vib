@@ -7,8 +7,11 @@ import math as mt
 import scipy.linalg as la
 import sys
 from scipy.optimize import fsolve
-from Modes_EF_module import Modes_EF
 from Chargement_module import Chargement
+from Modes_EF_module import Modes_EF
+import matplotlib.pyplot as plt
+from scipy.linalg import eig
+import numpy as np
 
 # #########################################################################
 # Dimension de l'aile et propriétés
@@ -125,18 +128,7 @@ Nb_Modes = 5
 for i in range(Nb_Modes):
     print(OMEGA[i])
 couleur = iter(plt.cm.rainbow(np.linspace(0,0.4,Nb_Modes)))
-# use LaTeX fonts in the plot
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-for i in range(Nb_Modes):
-    c=next(couleur)
-    plt.plot(x[:],v_FEM[:,i],'-',label='mode '+str(i+1), color=c)
-plt.xlabel(r'x/L', fontsize=11)
-plt.ylabel(r'Amplitude normée', fontsize=11)
-plt.legend(loc='best')
-plt.grid(True)
-plt.savefig('modes_EF.png', dpi = 300, bbox_inches='tight')
-plt.show()
+
 # #########################################################################
 # Intégration temporelle
 # Temps de simulation
@@ -196,7 +188,8 @@ if Type == 2:
     for i in range(Nb_DDL):
         z0[2*i+1] = Impulsion[i]
 # résolution du système d'EDO couplées
-z = solve_ivp(model,tspan,z0,method='Radau',args=(invM,invMC,invMK,Nb_DDL,Type),t_eval=t[n-N_vis-1:n-1])
+z = solve_ivp(model, tspan, z0, method='Radau', args=(invM, invMC, invMK, Nb_DDL, Type), t_eval=t)
+
 # enregistrement de la solution pour visualisation
 x_sol = np.zeros((N_vis,Nb_DDL))
 v_sol = np.zeros((N_vis,Nb_DDL))
@@ -288,10 +281,7 @@ print('delta - convergence vecteurs propres')
 print(delta)
 
 # ANALYSE DE CONVERGENCE - FRÉQUENCES PROPRES ET MODES PROPRES (EF)
-import matplotlib.pyplot as plt
-from scipy.linalg import eig
-from scipy.optimize import curve_fit
-import numpy as np
+
 
 # =====================
 # Fonction assemblage EF pour un N donné
@@ -358,15 +348,7 @@ while N <= 320:
     epsilons.append(eps_max)
     N *= 2
 
-# Figure convergence fréquence (log-log)
-plt.figure()
-plt.loglog(N_vals, np.array(epsilons)*100, 'o-', label="Erreur max freq")
-plt.xlabel("Nombre d'éléments (N)")
-plt.ylabel("Erreur maximale (%)")
-plt.title("Convergence des fréquences (log-log)")
-plt.grid(True, which='both', linestyle='--')
-plt.legend()
-plt.savefig("convergence_frequences_EF.png", dpi=300)
+
 
 # =====================
 # Analyse convergence des modes
@@ -390,12 +372,74 @@ while N <= 320:
     deltas.append(delta)
     N *= 2
 
-# Figure convergence modes (log-log)
+# Tracé des résultats
+
+# modes propres EF --
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+couleur = iter(plt.cm.rainbow(np.linspace(0, 0.8, Nb_Modes)))
 plt.figure()
-plt.loglog(N_vals, np.array(deltas)*100, 'o-', label="Erreur max mode")
-plt.xlabel("Nombre d'éléments (N)")
-plt.ylabel("Erreur quadratique (%)")
-plt.title("Convergence des modes propres (log-log)")
+for i in range(Nb_Modes):
+    c = next(couleur)
+    plt.plot(x[:], v_FEM[:, i], '-', label=f'Mode {i+1}', color=c)
+
+plt.xlabel(r'Position normalisée $x/L$ (sans unité)', fontsize=12)
+plt.ylabel(r'Amplitude normalisée $v(x)$ (sans unité)', fontsize=12)
+plt.title(r'Modes propres EF normalisés ($v(x)$)', fontsize=13)
+plt.grid(True)
+plt.legend()
+plt.savefig('modes_EF.png', dpi=300, bbox_inches='tight')
+plt.show()
+
+#Convergence des fréquences EF (log-log) --
+plt.figure()
+plt.loglog(N_vals, np.array(epsilons)*100, 'o-', label="Erreur max fréquence")
+plt.xlabel("Nombre d'éléments $N$ (sans unité)", fontsize=12)
+plt.ylabel("Erreur maximale $\epsilon$ (\%)", fontsize=12)
+plt.title("Convergence des fréquences propres (EF)", fontsize=13)
+plt.grid(True, which='both', linestyle='--')
+plt.legend()
+plt.savefig("convergence_frequences_EF.png", dpi=300)
+plt.show()
+# -- 3. Convergence des modes EF (log-log) --
+plt.figure()
+plt.loglog(N_vals, np.array(deltas)*100, 's-', label="Erreur max mode")
+plt.xlabel("Nombre d'éléments $N$ (sans unité)", fontsize=12)
+plt.ylabel("Erreur quadratique $\delta$ (\%)", fontsize=12)
+plt.title("Convergence des modes propres (EF)", fontsize=13)
 plt.grid(True, which='both', linestyle='--')
 plt.legend()
 plt.savefig("convergence_modes_EF.png", dpi=300)
+plt.show()
+
+# -- 4. Forme à différents instants t (rafale) --
+temps_voulus = [0.5, 1.0, 2.0, 3.0, 4.0]
+t_indices = [np.argmin(np.abs(z.t - tv)) for tv in temps_voulus]
+x_visu = np.linspace(0, Longueur, 100)
+forme = Modes_EF(PHI, x_visu, Longueur, Nb_Elements)
+
+plt.figure()
+for idx in t_indices:
+    deformation = forme @ z.y[::2, idx]
+    plt.plot(x_visu, deformation, label=f"t = {z.t[idx]:.2f} s")
+
+plt.xlabel("Position $x$ (m)", fontsize=12)
+plt.ylabel("Déplacement vertical $v(x)$ (m)", fontsize=12)
+plt.title("Déformée de l’aile à différents instants ($v(x,t)$)", fontsize=13)
+plt.grid(True)
+plt.legend()
+plt.savefig("forme_temporelle_poutre.png", dpi=300)
+plt.show()
+
+# -- 5. Déplacement de l’extrémité libre vs temps (rafale) --
+x_extremite = np.array([Longueur])
+v_extremite = Modes_EF(PHI, x_extremite, Longueur, Nb_Elements) @ z.y[::2, :]
+
+plt.figure()
+plt.plot(z.t, v_extremite[0, :], 'b-')
+plt.xlabel("Temps $t$ (s)", fontsize=12)
+plt.ylabel("Déplacement vertical à $x = L$ (m)", fontsize=12)
+plt.title("Réponse libre à l’extrémité de l’aile ($v(L,t)$)", fontsize=13)
+plt.grid(True)
+plt.savefig("deplacement_extremite.png", dpi=300)
+plt.show()
