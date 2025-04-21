@@ -40,7 +40,7 @@ def calcul_omega(N):
 
 N_vals = list(range(5, 16))
 erreurs_freq = []
-print("\n📈 Erreurs relatives maximales sur les fréquences propres:")
+print("\nErreurs relatives maximales sur les fréquences propres:")
 for N in N_vals:
     omega_N = calcul_omega(N)
     omega_2N = calcul_omega(2*N)
